@@ -4,41 +4,37 @@ from backend.services.optimization_model import OptimizationModel
 from backend.services.fitting import Fitting
 from backend.services.results_service import save_optimization_results
 import numpy as np
-import matplotlib.pyplot as plt
+import pandas as pd
 from pathlib import Path
 import sys
 
 def run_pipeline(csv_file_path: str, 
                  output_file: str = "static/results/output.txt",
-                 plot_file: str = "static/plots/wells_plot.png",
                  user: str = None,
-                 qgl_limit: float = 4600) -> str:
+                 qgl_limit: float = 4600) -> dict:  # Cambiamos el return type
     """
     Ejecuta el pipeline completo de optimización y guarda resultados en DB
     
     Args:
         csv_file_path: Ruta al archivo CSV con datos de entrada
         output_file: Ruta para guardar los resultados en texto
-        plot_file: Ruta para guardar la gráfica de resultados
         user: Nombre del usuario que ejecuta la optimización
-        qgl_limit: Límite total de gas de levantamiento disponible (default: 4600)
+        qgl_limit: Límite total de gas de levantamiento disponible
     
     Returns:
-        Ruta al archivo de resultados generado
+        Diccionario con resultados y datos para gráficas
     """
-    
     # Cargar datos
     loader = DataLoader(csv_file_path)
     q_gl_list, q_oil_list, list_info = loader.load_data()
 
-    # Configurar figura para las gráficas
-    fig, axes = plt.subplots(3, 2, figsize=(15, 12))
-    axes = axes.flatten()
-    
     q_gl_max = max([np.max(j) for j in q_gl_list])
     q_gl_range = np.linspace(0, q_gl_max, 1000)
 
+    # Preparar datos para las gráficas
+    plot_data = []
     y_pred_list = []
+    
     for well in range(len(q_oil_list)):
         q_gl = q_gl_list[well]
         q_oil = q_oil_list[well]
@@ -47,31 +43,21 @@ def run_pipeline(csv_file_path: str,
         y_pred = fitter.fit(fitter.model_namdar, q_gl_range)
         y_pred_list.append(y_pred)
         
-        # Graficar
-        ax = axes[well]
-        ax.plot(q_gl_range, y_pred, label="Curva ajustada", linewidth=2)
-        ax.scatter(q_gl, q_oil, color='red', label='Datos reales')
-        ax.set_xlabel('Inyección de Gas (q_gl)')
-        ax.set_ylabel('Producción de Petróleo (q_oil)')
-        ax.set_title(f'Pozo {well+1}')
-        ax.legend()
-        ax.grid()
+        # Guardar datos para gráficas interactivas
+        well_data = {
+            "well_num": well + 1,
+            "q_gl_actual": q_gl,
+            "q_oil_actual": q_oil,
+            "q_gl_range": q_gl_range,
+            "q_oil_predicted": y_pred
+        }
+        plot_data.append(well_data)
 
-    # Ajustar layout y guardar gráfica
-    plt.tight_layout()
-    
-    # Asegurar que exista el directorio para las gráficas
-    plot_dir = Path(plot_file).parent
-    plot_dir.mkdir(parents=True, exist_ok=True)
-    
-    plt.savefig(plot_file, dpi=300, bbox_inches='tight')
-    plt.close()
-
-    # Optimización con el límite configurado
+    # Optimización
     model = OptimizationModel(
         q_gl=q_gl_range,
         q_fluid_wells=y_pred_list,
-        available_qgl_total=qgl_limit  # Usamos el parámetro aquí
+        available_qgl_total=qgl_limit
     )
     model.define_optimisation_problem()
     model.define_variables()
@@ -83,11 +69,10 @@ def run_pipeline(csv_file_path: str,
     result_optimal_qgl = model.get_optimal_injection_rates()
     results = list(zip(result_prod_rates, result_optimal_qgl))
 
-    # Asegurar que exista el directorio para resultados
+    # Guardar resultados en archivo
     output_dir = Path(output_file).parent
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Guardar resultados en archivo
     with open(output_file, "w") as file:
         file.write("=== Resultados de Optimización ===\n\n")
         file.write(f"Límite QGL configurado: {qgl_limit}\n")
@@ -106,11 +91,19 @@ def run_pipeline(csv_file_path: str,
     save_optimization_results(
         total_prod=sum(result_prod_rates),
         total_qgl=sum(result_optimal_qgl),
-        info = list_info,
+        info=list_info,
         wells_data=wells_data,
         filename=csv_file_path,
         user=user,
         qgl_limit=qgl_limit,
     )
 
-    return output_file
+    return {
+        "results": results,
+        "plot_data": plot_data,
+        "summary": {
+            "total_production": sum(result_prod_rates),
+            "total_qgl": sum(result_optimal_qgl),
+            "qgl_limit": qgl_limit
+        }
+    }
