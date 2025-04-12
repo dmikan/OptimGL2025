@@ -4,6 +4,12 @@ from fastapi import UploadFile
 from pathlib import Path
 from backend.services.optimization_pipeline import run_pipeline
 
+'''
+Este controlador maneja la subida de archivos y la ejecución del pipeline de optimización.
+Recibe un archivo CSV, lo guarda en el servidor y ejecuta el pipeline de optimización.
+El resultado se guarda en un archivo de texto y un gráfico, que se devuelven como respuesta.
+
+'''
 async def handle_upload(file: UploadFile):
     # Configura rutas absolutas
     BASE_DIR = Path(__file__).resolve().parent.parent

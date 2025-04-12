@@ -1,10 +1,13 @@
 # backend/services/results_service.py
-from backend.models.database import Optimizacion, ResultadoPozo, init_db, get_session
+from backend.models.optimizacion import Optimizacion
+from backend.models.resultado_pozo import ResultadoPozo
+from backend.models.database import init_db, get_session
 from datetime import datetime
 
 def save_optimization_results(total_prod: float, 
                             total_qgl: float,
                             wells_data: list,
+                            info: list,
                             filename: str,
                             user: str = None,
                             qgl_limit: float = 1000):  # Parámetro añadido con valor por defecto
@@ -28,6 +31,7 @@ def save_optimization_results(total_prod: float,
             qgl_total=total_qgl,
             qgl_limit=qgl_limit,  
             archivo_origen=filename,
+            nombre_planta=info[0],
             usuario=user
         )
         
@@ -39,6 +43,7 @@ def save_optimization_results(total_prod: float,
             pozo = ResultadoPozo(
                 optimizacion_id=optimizacion.id,
                 numero_pozo=well['numero'],
+                nombre_pozo=info[well['numero']],
                 produccion_optima=well['produccion'],
                 qgl_optimo=well['qgl']
             )

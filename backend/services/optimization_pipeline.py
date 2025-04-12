@@ -29,7 +29,7 @@ def run_pipeline(csv_file_path: str,
     
     # Cargar datos
     loader = DataLoader(csv_file_path)
-    q_gl_list, q_oil_list = loader.load_data_gl_template()
+    q_gl_list, q_oil_list, list_info = loader.load_data()
 
     # Configurar figura para las gráficas
     fig, axes = plt.subplots(3, 2, figsize=(15, 12))
@@ -106,10 +106,11 @@ def run_pipeline(csv_file_path: str,
     save_optimization_results(
         total_prod=sum(result_prod_rates),
         total_qgl=sum(result_optimal_qgl),
+        info = list_info,
         wells_data=wells_data,
         filename=csv_file_path,
         user=user,
-        qgl_limit=qgl_limit 
+        qgl_limit=qgl_limit,
     )
 
     return output_file

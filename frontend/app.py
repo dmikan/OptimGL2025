@@ -10,7 +10,8 @@ project_root = Path(__file__).parent.parent
 sys.path.append(str(project_root))
 
 from backend.services.optimization_pipeline import run_pipeline
-from backend.models.database import init_db, get_session, Optimizacion
+from backend.models.database import init_db, get_session
+from backend.models.optimizacion import Optimizacion
 
 # Inicializar la base de datos
 engine = init_db()
