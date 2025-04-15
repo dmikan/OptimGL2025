@@ -30,9 +30,9 @@ def save_optimization_results(total_prod: float,
             produccion_total=total_prod,
             qgl_total=total_qgl,
             qgl_limit=qgl_limit,  
-            archivo_origen=filename,
             nombre_planta=info[0],
-            usuario=user
+            usuario=user,
+            archivo_origen=filename
         )
         
         session.add(optimizacion)

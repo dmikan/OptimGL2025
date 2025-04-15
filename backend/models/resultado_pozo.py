@@ -1,10 +1,3 @@
-"""
-Modelo de Resultados por Pozo.
-
-Contiene:
-- ResultadoPozo: Modelo para resultados individuales por pozo
-"""
-
 from sqlalchemy import Column, Integer, Float, ForeignKey, String
 from sqlalchemy.orm import relationship
 from .database import Base
@@ -20,3 +13,4 @@ class ResultadoPozo(Base):
     qgl_optimo = Column(Float)
     
     optimizacion = relationship("Optimizacion", back_populates="pozos")
+
