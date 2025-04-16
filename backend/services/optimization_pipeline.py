@@ -8,33 +8,18 @@ import pandas as pd
 from pathlib import Path
 import sys
 
-def run_pipeline(csv_file_path: str, 
-                 output_file: str = "static/results/output.txt",
-                 user: str = None,
-                 qgl_limit: float = 4600) -> dict:  # Cambiamos el return type
-    """
-    Ejecuta el pipeline completo de optimización y guarda resultados en DB
-    
-    Args:
-        csv_file_path: Ruta al archivo CSV con datos de entrada
-        output_file: Ruta para guardar los resultados en texto
-        user: Nombre del usuario que ejecuta la optimización
-        qgl_limit: Límite total de gas de levantamiento disponible
-    
-    Returns:
-        Diccionario con resultados y datos para gráficas
-    """
+def fitting_group(csv_file_path):
     # Cargar datos
     loader = DataLoader(csv_file_path)
-    q_gl_list, q_oil_list, list_info = loader.load_data()
+    q_gl_list, q_oil_list, _ = loader.load_data()
 
     q_gl_max = max([np.max(j) for j in q_gl_list])
-    q_gl_range = np.linspace(0, q_gl_max, 1000)
-
+    #q_gl_range = np.linspace(0, q_gl_max, 100)
+    q_gl_range = np.logspace(0.1, np.log10(q_gl_max), 1000) 
     # Preparar datos para las gráficas
     plot_data = []
     y_pred_list = []
-    
+
     for well in range(len(q_oil_list)):
         q_gl = q_gl_list[well]
         q_oil = q_oil_list[well]
@@ -51,8 +36,35 @@ def run_pipeline(csv_file_path: str,
             "q_gl_range": q_gl_range,
             "q_oil_predicted": y_pred
         }
-        plot_data.append(well_data)
+        plot_data.append(well_data)  
+    return {
+        "qgl_range": q_gl_range,
+        "y_pred_list": y_pred_list,
+        "plot_data": plot_data,     
+    }    
 
+
+def run_pipeline(csv_file_path: str,
+                 q_gl_range,
+                 y_pred_list,
+                 plot_data, 
+                 output_file: str = "static/results/output.txt",
+                 qgl_limit: float = 4600) -> dict:  # Cambiamos el return type
+    """
+    Ejecuta el pipeline completo de optimización y guarda resultados en DB
+    
+    Args:
+        csv_file_path: Ruta al archivo CSV con datos de entrada
+        output_file: Ruta para guardar los resultados en texto
+        user: Nombre del usuario que ejecuta la optimización
+        qgl_limit: Límite total de gas de levantamiento disponible
+    
+    Returns:
+        Diccionario con resultados y datos para gráficas
+    """
+    # Cargar datos
+    loader = DataLoader(csv_file_path)
+    _, _, list_info = loader.load_data()
     # Optimización
     model = OptimizationModel(
         q_gl=q_gl_range,
@@ -94,7 +106,6 @@ def run_pipeline(csv_file_path: str,
         info=list_info,
         wells_data=wells_data,
         filename=csv_file_path,
-        user=user,
         qgl_limit=qgl_limit,
     )
 
@@ -105,5 +116,7 @@ def run_pipeline(csv_file_path: str,
             "total_production": sum(result_prod_rates),
             "total_qgl": sum(result_optimal_qgl),
             "qgl_limit": qgl_limit
-        }
+            },
+        "qgl_range": q_gl_range,
+        "y_pred_list": y_pred_list    
     }

@@ -19,7 +19,6 @@ class Optimizacion(Base):
     qgl_total = Column(Float)
     qgl_limit = Column(Float)
     nombre_planta = Column(String(100))
-    usuario = Column(String(100))
     archivo_origen = Column(String(255))
     
     pozos = relationship("ResultadoPozo", back_populates="optimizacion")
