@@ -9,7 +9,6 @@ def save_optimization_results(total_prod: float,
                             wells_data: list,
                             info: list,
                             filename: str,
-                            user: str = None,
                             qgl_limit: float = 1000):  # Parámetro añadido con valor por defecto
     """Guarda los resultados de optimización en la base de datos
     
@@ -30,9 +29,8 @@ def save_optimization_results(total_prod: float,
             produccion_total=total_prod,
             qgl_total=total_qgl,
             qgl_limit=qgl_limit,  
-            archivo_origen=filename,
             nombre_planta=info[0],
-            usuario=user
+            archivo_origen=filename
         )
         
         session.add(optimizacion)
