@@ -12,6 +12,7 @@
 10. hacer los gráficos en streamlit de cada pozo y también del general. 
 11. poder tener una funcionalidad para traer la información de la base de datos de cualquier planta.
 12. interfaz para ingresar datos de forma manual. 
+13. verificar si es posible verificar lo del MG (con precios de qgl y oil).
 
 #bounds = ([-np.inf, -np.inf, -np.inf, -np.inf, -np.inf], 
                                              [np.inf, np.inf, np.inf, np.inf, 110])
