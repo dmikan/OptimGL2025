@@ -58,19 +58,18 @@ if tabs == "Optimización":
                     # --- Gráfica de Optimización Global ---
                     st.subheader(f"Curva de Optimización Global: {optimizacion.nombre_planta}")
 
-                    def has_stabilized(values, window_size=3, tolerance=1e-6):
+                    def has_stabilized(values, window_size=20, tolerance=1e-6):
                         """Detecta si los valores se han estabilizado"""
                         if len(values) < window_size:
                             return False
                         recent = values[-window_size:]
                         return all(abs(x - recent[0]) < tolerance for x in recent)
-
                     qgl_history = []
+
+                    # tanto el num como max_qgl se refieren a parametros que permiten visualizar la curva de optimización global y no se refienen a la resolución del fitting
                     num = 40
                     max_qgl = 20000 
                     optimization_results = {"qgl_limit": [], "total_production": [], "total_qgl": []}
-                    #log_vals = np.linspace(0, 10000, 30, dtype=int)
-                    #log_vals = np.logspace(start=0, stop=np.log10(20000), num=20, dtype=int)
                     log_vals = np.logspace(start=1, stop=np.log10(max_qgl), num=num)
                     log_vals = np.unique(log_vals)
                     progress_bar = st.progress(0, text="Calculando curva de optimización global...")
@@ -79,12 +78,14 @@ if tabs == "Optimización":
                                 q_gl_range=fit["qgl_range"],
                                 y_pred_list=fit["y_pred_list"], 
                                 qgl_limit = qgl_limit) 
+                        
                         # la siguiente línea vienes de la función run_pipeline que retorna un diccionario y tomamos su valor de "summary 
                         current_qgl = dic_optim_result["total_qgl"]
                         optimization_results["qgl_limit"].append(qgl_limit)
                         optimization_results["total_production"].append(dic_optim_result["total_production"])
                         optimization_results["total_qgl"].append(dic_optim_result["total_qgl"])
                         qgl_history.append(current_qgl)
+                        
                         # Actualizar barra de progreso con información de estabilidad
                         progress_text = f"Procesando QGL límite: {round(qgl_limit,2)}"
                         if has_stabilized(qgl_history):
@@ -97,6 +98,26 @@ if tabs == "Optimización":
                             break
 
                     progress_bar.empty()
+
+                     # Calculate Marginal and Average Products
+                    qgl_values = np.array(optimization_results["total_qgl"])
+                    production_values = np.array(optimization_results["total_production"])
+                    
+                    # Marginal Product (ΔProduction/ΔQGL)
+                    marginal_product = np.zeros_like(production_values)
+                    marginal_product[1:] = np.diff(production_values) / np.diff(qgl_values)
+                    
+                    # Average Product (Production/QGL)
+                    average_product = np.zeros_like(production_values)
+                    with np.errstate(divide='ignore', invalid='ignore'):
+                        average_product = production_values / qgl_values
+                        average_product[np.isinf(average_product)] = 0
+                        average_product = np.nan_to_num(average_product)
+
+                    print("✅", production_values)
+                    print("✅✅", qgl_values)
+                    print("✅✅✅", marginal_product)
+                    print("✅✅✅✅", average_product)    
 
                     # Configuración de colores para tema oscuro de Streamlit
                     bg_color = "#0E1117"  # Color de fondo oscuro de Streamlit

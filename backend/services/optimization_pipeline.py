@@ -14,7 +14,7 @@ def fitting_group(csv_file_path):
     q_gl_list, q_oil_list, _ = loader.load_data()
 
     q_gl_max = max([np.max(j) for j in q_gl_list])
-    #q_gl_range = np.linspace(0, q_gl_max, 100)
+    #q_gl_range = np.linspace(0, q_gl_max, 1000)
     q_gl_range = np.logspace(0.1, np.log10(q_gl_max), 1000) 
     # Preparar datos para las gráficas
     plot_data = []
