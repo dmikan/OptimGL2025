@@ -27,8 +27,53 @@ st.title("🛢️ Optimización de Distribución de Gas")
 tabs = st.sidebar.radio("Selecciona una opción", ["Optimización", "Otros servicios"])
 
 if tabs == "Optimización":
-    # --- Subida de archivo ---
     uploaded_file = st.file_uploader("Sube tu archivo CSV con datos de producción", type="csv")
+    on = st.toggle("upload data manually")
+
+    if on:
+
+        input_columns_info = ["field", "well_1", "well_2", "well_3", "well_4", "well_5"]
+        input_df_info = pd.DataFrame({
+                    col: ["" for _ in range(1)] for col in input_columns_info
+                    }
+                    )
+        edited_input_df_info = st.data_editor(input_df_info, width=None, height=None, num_rows="Dynamic", use_container_width=True)     
+       
+        input_columns = ["q_inj_w1", "fluid_w1", "q_inj_w2", "fluid_w2", "q_inj_w3", "fluid_w3", "q_inj_w4", "fluid_w4", "q_inj_w5", "fluid_w5"]
+        input_df = pd.DataFrame({
+                            col: ["" for _ in range(10)] for col in input_columns
+                            }
+                            )
+        edited_input_df = st.data_editor(input_df, width=None, height=None, num_rows="Dynamic", use_container_width=True)     
+        # agregar columna index 
+        edited_input_df.insert(0, "index", range(1, len(edited_input_df) + 1))
+
+        # Columnas actuales
+        current_cols = edited_input_df_info.columns.tolist()
+
+        # Si faltan columnas, las añadimos con nombres automáticos
+        num_col = edited_input_df.shape[1]
+        if len(current_cols) < num_col:
+            for col in range(len(current_cols), num_col):
+                edited_input_df_info[col] = np.nan  
+        
+        #agregar una fila de primera para la descripción
+        df_desc = pd.DataFrame([ [""] * edited_input_df_info.shape[1]], columns=edited_input_df_info.columns)
+        edited_input_df_info = pd.concat([df_desc, edited_input_df_info], ignore_index=True)           
+        #exportar en csv
+        edited_input_df_info.to_csv("data_test.csv", index=False)
+
+        # --- Exportar a CSV ---
+        st.download_button(
+            label="Download CSV",
+            data=edited_input_df_info.to_csv(index=False).encode('utf-8'),
+            file_name="data_test.csv",
+            mime="text/csv"
+        )
+        #uploaded_file = edited_input_df
+
+
+
     # Crear pestañas
     tab1, tab2, tab3 = st.tabs(["Optimización Global", "Optimización con QGL dado", "Historial de Optimizaciones"])
 
@@ -231,14 +276,37 @@ if tabs == "Optimización":
     with tab2:
         # --- Sección de configuración ---
         with st.expander("Configuración de Optimización", expanded=True):
-            qgl_limit = st.number_input(
-                "Límite total de QGL (Gas de Levantamiento)", 
-                min_value=0, 
-                max_value=None, 
-                value=1000,
-                step=100,
-                key="qgl_limit"
-            )
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                qgl_limit = st.number_input(
+                    "Límite total de QGL (Mscf)", 
+                    min_value=0, 
+                    max_value=None, 
+                    value=1000,
+                    step=100,
+                    key="qgl_limit"
+                )
+            
+            with col2:
+                p_qoil = st.number_input(
+                    "Precio del petróleo (USD/bbl)", 
+                    min_value=0.1, 
+                    max_value=None, 
+                    value=70.0,
+                    step=1.0,
+                    key="p_qoil"
+                )
+            
+            with col3:
+                p_qgl = st.number_input(
+                    "Costo del gas (USD/Mscf)", 
+                    min_value=0.1, 
+                    max_value=None, 
+                    value=5.0,
+                    step=0.5,
+                    key="p_qgl"
+                )
         # Ejecutar pipeline
         if st.button("Ejecutar Optimización"):
             with st.spinner("Procesando datos..."):
@@ -252,7 +320,9 @@ if tabs == "Optimización":
                         y_pred_list=fit["y_pred_list"],
                         plot_data=fit["plot_data"],
                         output_file=str(project_root / "static" / "results" / "output_temp.txt"),
-                        qgl_limit=qgl_limit
+                        qgl_limit=qgl_limit,
+                        p_qoil=p_qoil,
+                        p_qgl=p_qgl
                     )
                     
                     st.success("¡Optimización completada!")
@@ -301,22 +371,23 @@ if tabs == "Optimización":
                         marker_color = "#C8E6C9"  # Verde claro para los puntos de datos
                         optimal_line_color = "#FF5252"  # Rojo brillante para las líneas de QGL óptimo
                         
-                        # Crear figura con subplots
-                        fig = make_subplots(
+                        ######################################################
+                        # FIGURA 1: CURVA DE PRODUCCIÓN (q_oil vs q_gl)
+                        ######################################################
+                        fig_prod = make_subplots(
                             rows=2, 
                             cols=3, 
-                            subplot_titles=[f"Well {pozo.nombre_pozo}" 
-                                           for pozo in optimizacion.pozos],
+                            subplot_titles=[f"Well {pozo.nombre_pozo} - Producción" for pozo in optimizacion.pozos],
                             horizontal_spacing=0.1,
                             vertical_spacing=0.15
                         )
-                        
+
                         for idx, (well_data, pozo) in enumerate(zip(results['plot_data'], optimizacion.pozos)):
                             row = (idx // 3) + 1
                             col = (idx % 3) + 1
                             
-                            # Añadir curva ajustada
-                            fig.add_trace(
+                            # Curva ajustada
+                            fig_prod.add_trace(
                                 go.Scatter(
                                     x=well_data["q_gl_range"],
                                     y=well_data["q_oil_predicted"],
@@ -329,8 +400,8 @@ if tabs == "Optimización":
                                 row=row, col=col
                             )
                             
-                            # Añadir puntos reales
-                            fig.add_trace(
+                            # Puntos reales
+                            fig_prod.add_trace(
                                 go.Scatter(
                                     x=well_data["q_gl_actual"],
                                     y=well_data["q_oil_actual"],
@@ -343,12 +414,26 @@ if tabs == "Optimización":
                                 row=row, col=col
                             )
                             
-                            # Añadir línea vertical para QGL óptimo
+                            # optimo según MRP
+
+                            fig_prod.add_trace(
+                                go.Scatter(
+                                    x=[results["p_qgl_optim_list"][idx], results["p_qgl_optim_list"][idx]],
+                                    y=[0, results["p_qoil_optim_list"][idx]],
+                                    mode='lines',
+                                    name='QGL máximo óptimo',
+                                    line=dict(color=marker_color, width=2, dash='dash'),
+                                    showlegend=True if idx == 0 else False,
+                                    legendgroup='group5'
+                                ),
+                                row=row, col=col
+                            )
+
+                            # Línea y marcador óptimo
                             optimal_qgl = pozo.qgl_optimo
                             optimal_prod = pozo.produccion_optima
                             
-                            # Crear segmento desde (optimal_qgl, 0) hasta (optimal_qgl, optimal_prod)
-                            fig.add_trace(
+                            fig_prod.add_trace(
                                 go.Scatter(
                                     x=[optimal_qgl, optimal_qgl],
                                     y=[0, optimal_prod],
@@ -356,13 +441,12 @@ if tabs == "Optimización":
                                     name='QGL óptimo',
                                     line=dict(color=optimal_line_color, width=2, dash='dash'),
                                     showlegend=True if idx == 0 else False,
-                                    legendgroup='group3'
+                                    legendgroup='group'
                                 ),
                                 row=row, col=col
                             )
                             
-                            # Añadir marcador en el punto óptimo
-                            fig.add_trace(
+                            fig_prod.add_trace(
                                 go.Scatter(
                                     x=[optimal_qgl],
                                     y=[optimal_prod],
@@ -375,29 +459,27 @@ if tabs == "Optimización":
                                 row=row, col=col
                             )
                             
-                            # Configurar ejes con colores del tema
-                            fig.update_xaxes(
+                            # Configuración de ejes
+                            fig_prod.update_xaxes(
                                 title_text="Inyección de gas (q_gl)", 
-                                row=row, 
-                                col=col,
+                                row=row, col=col,
                                 gridcolor=grid_color,
                                 linecolor=grid_color,
                                 tickfont=dict(color=text_color),
                                 title_font=dict(color=text_color)
                             )
                             
-                            fig.update_yaxes(
-                                title_text="Producción de petróleo (q_oil)", 
-                                row=row, 
-                                col=col,
+                            fig_prod.update_yaxes(
+                                title_text="Producción (bbl/d)", 
+                                row=row, col=col,
                                 gridcolor=grid_color,
                                 linecolor=grid_color,
                                 tickfont=dict(color=text_color),
                                 title_font=dict(color=text_color)
                             )
-                        
-                        # Configuración general del layout
-                        fig.update_layout(
+
+                        # Layout figura 1
+                        fig_prod.update_layout(
                             height=800,
                             width=1200,
                             plot_bgcolor=bg_color,
@@ -411,32 +493,131 @@ if tabs == "Optimización":
                                 x=1,
                                 font=dict(color=text_color)
                             ),
-                            margin=dict(l=50, r=50, b=80, t=80, pad=4),
+                            margin=dict(l=50, r=50, b=80, t=100, pad=4)
                         )
-                        
-                        # Configuración del grid
-                        fig.update_xaxes(
-                            showgrid=True, 
-                            gridwidth=1, 
-                            gridcolor=grid_color,
-                            zerolinecolor=grid_color
-                        )
-                        
-                        fig.update_yaxes(
-                            showgrid=True, 
-                            gridwidth=1, 
-                            gridcolor=grid_color,
-                            zerolinecolor=grid_color
-                        )
-                        
-                        # Ajustar títulos de subplots
-                        for annotation in fig['layout']['annotations']:
-                            annotation['font'] = dict(color=text_color, size=12)
-                        
-                        st.plotly_chart(fig, use_container_width=True)
 
-                        # Separador visual
-                        st.markdown("---")
+                        st.plotly_chart(fig_prod, use_container_width=True)
+
+                        ######################################################
+                        # FIGURA 2: ANÁLISIS ECONÓMICO (MRP vs COSTO)
+                        ######################################################
+                        st.subheader("Optimización Económica (MRP vs Costo)")
+
+                        # Precios (ajustar según tus datos)
+                        P_qoil = 70  # Precio por barril de petróleo (USD/bbl)
+                        P_qgl = 5    # Costo por Mscf de gas inyectado (USD/Mscf)
+
+                        fig_mrp = make_subplots(
+                            rows=2, 
+                            cols=3, 
+                            subplot_titles=[f"Well {pozo.nombre_pozo}" for pozo in optimizacion.pozos],
+                            horizontal_spacing=0.1,
+                            vertical_spacing=0.15
+                        )
+
+                        for idx, (well_data, pozo) in enumerate(zip(results['plot_data'], optimizacion.pozos)):
+                            row = (idx // 3) + 1
+                            col = (idx % 3) + 1
+                            
+                            # Calcular MRP
+                            delta_q_gl = np.diff(well_data["q_gl_range"])
+                            delta_q_oil = np.diff(well_data["q_oil_predicted"])
+                            mp = delta_q_oil / delta_q_gl
+                            mrp = P_qoil * mp  # Marginal Revenue Product
+                            qgl_values = well_data["q_gl_range"][:-1]  # Valores de qgl para el MRP
+
+                            # --- Gráfico principal ---
+                            # 1. Curva MRP
+                            fig_mrp.add_trace(
+                                go.Scatter(
+                                    x=qgl_values,
+                                    y=mrp,
+                                    mode='lines',
+                                    name='MRP (USD/Mscf)',
+                                    line=dict(width=3, color='#636EFA'),
+                                    showlegend=True if idx == 0 else False,
+                                    legendgroup='group1'
+                                ),
+                                row=row, col=col
+                            )
+                            
+                            # 2. Línea de costo (wage)
+                            fig_mrp.add_hline(
+                                y=P_qgl,
+                                line=dict(width=2, color='#EF553B', dash='dash'),
+                                annotation_text=f"Costo Gas: {P_qgl} USD/Mscf",
+                                annotation_position="top right",
+                                row=row, col=col
+                            )
+                            
+                            # --- Encontrar y marcar intersección (qgl óptimo) ---
+                            # Buscar el punto donde MRP >= P_qgl por última vez
+                            optimal_idx = np.where(mrp >= P_qgl)[0][-1] if any(mrp >= P_qgl) else len(mrp)-1
+                            qgl_optimo = qgl_values[optimal_idx]
+                            mrp_optimo = mrp[optimal_idx]
+                            
+                            # 3. Línea vertical del óptimo
+                            fig_mrp.add_vline(
+                                x=qgl_optimo,
+                                line=dict(width=2, color='#00CC96', dash='dot'),
+                                annotation_text=f"Óptimo: {qgl_optimo:.1f} Mscf",
+                                annotation_position="top left",
+                                row=row, col=col
+                            )
+                            
+                            # 4. Punto de intersección
+                            fig_mrp.add_trace(
+                                go.Scatter(
+                                    x=[qgl_optimo],
+                                    y=[mrp_optimo],
+                                    mode='markers',
+                                    marker=dict(size=10, color='#FFA15A', symbol='x'),
+                                    name='Punto óptimo',
+                                    showlegend=True if idx == 0 else False,
+                                    legendgroup='group2'
+                                ),
+                                row=row, col=col
+                            )
+                            
+                            # --- Configuración de ejes ---
+                            fig_mrp.update_xaxes(
+                                title_text="Inyección de gas (q_gl)", 
+                                row=row, col=col,
+                                gridcolor=grid_color,
+                                tickfont=dict(color=text_color),
+                                title_font=dict(color=text_color),
+                                range=[0, max(qgl_values)*1.1]  # Ajuste de rango para visualización
+                            )
+                            
+                            fig_mrp.update_yaxes(
+                                title_text="MRP (USD/Mscf)", 
+                                row=row, col=col,
+                                gridcolor=grid_color,
+                                tickfont=dict(color=text_color),
+                                title_font=dict(color=text_color),
+                                range=[0, max(mrp)*1.1]  # Ajuste de rango para visualización
+                            )
+
+                        # Layout general
+                        fig_mrp.update_layout(
+                            height=800,
+                            width=1200,
+                            plot_bgcolor=bg_color,
+                            paper_bgcolor=bg_color,
+                            font=dict(color=text_color),
+                            legend=dict(
+                                orientation="h",
+                                yanchor="bottom",
+                                y=1.02,
+                                xanchor="right",
+                                x=1
+                            ),
+                            margin=dict(l=50, r=50, b=80, t=100, pad=4)
+                        )
+
+                        st.plotly_chart(fig_mrp, use_container_width=True)
+
+                        ######################################################
                         # --- Tabla de resultados ---
                         st.subheader("Resultados Detallados por Pozo")
                         
@@ -537,3 +718,4 @@ if tabs == "Optimización":
 
 elif tabs == "Otros servicios":
     st.subheader("Otros servicios")   
+    

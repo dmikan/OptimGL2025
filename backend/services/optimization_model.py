@@ -5,11 +5,12 @@ from backend.services.data_loader import DataLoader
 class OptimizationModel:
     """Class representing the optimisation model"""
 
-    def __init__(self, q_gl, q_fluid_wells, available_qgl_total):
+    def __init__(self, q_gl, q_fluid_wells, available_qgl_total, p_qgl_list):
         self.q_gl = q_gl
         self.q_fluid_wells = q_fluid_wells
         self.available_qgl_total = available_qgl_total
         #self.prob = pulp.LpProblem("Maximizar_Suma_Wells", pulp.LpMaximize)
+        self.p_qgl_list = p_qgl_list
         self.variables = self.define_variables()
         #self.build_objective_function()
         #self.agregar_restricciones()
@@ -39,11 +40,19 @@ class OptimizationModel:
         """Make sure that each well selects only one value of q_gl"""
         for index, col in enumerate(self.variables):
             self.prob += pulp.lpSum(col) == 1, f"Restriccion_Seleccion_Unica_{index}"
+
         self.prob += pulp.lpSum(
             self.variables[i][j] * self.q_gl[j]
             for j in range(len(self.q_gl))
             for i in range(len(self.q_fluid_wells))
         ) <= self.available_qgl_total, "constraint q_gl available"
+
+        # este for tiene en cuenta los valores óptimos del MRP para cada pozo
+        for i in range(len(self.q_fluid_wells)):
+            self.prob += (
+                pulp.lpSum(self.variables[i][j] * self.q_gl[j] for j in range(len(self.q_gl))) <= self.p_qgl_list[i],
+                f"Restriccion_Produccion_Pozo_{i}_GasLimit"  # Nombre único por pozo
+            )
         #return self.prob
 
 

@@ -49,7 +49,9 @@ def run_pipeline(csv_file_path: str,
                  y_pred_list,
                  plot_data, 
                  output_file: str = "static/results/output.txt",
-                 qgl_limit: float = 4600) -> dict:  # Cambiamos el return type
+                 qgl_limit: float = 4600,
+                 p_qoil: float = 0.0,
+                 p_qgl: float = 0.0) -> dict:  # Cambiamos el return type
     """
     Ejecuta el pipeline completo de optimización y guarda resultados en DB
     
@@ -62,14 +64,31 @@ def run_pipeline(csv_file_path: str,
     Returns:
         Diccionario con resultados y datos para gráficas
     """
-    # Cargar datos
+    # Calcular MRP
+    delta_q_gl = np.diff(q_gl_range)
+    p_qgl_optim_list = []
+    p_qoil_optim_list = []
+    for well in range(len(y_pred_list)):
+        delta_q_oil = np.diff(y_pred_list[well])
+        mp = delta_q_oil / delta_q_gl
+        mrp = p_qoil * mp  # Marginal Revenue Product
+        qgl_values = q_gl_range[:-1]  # Valores de qgl para el MRP
+        # Buscar el punto donde MRP >= P_qgl por última vez
+        optimal_idx = np.where(mrp >= p_qgl)[0][-1] if any(mrp >= p_qgl) else len(mrp)-1
+        qgl_optimo = qgl_values[optimal_idx]
+        y_pred_optimo = y_pred_list[well][optimal_idx]
+        p_qgl_optim_list.append(qgl_optimo)
+        p_qoil_optim_list.append(y_pred_optimo)
+
+    # Cargar datos para list_info
     loader = DataLoader(csv_file_path)
     _, _, list_info = loader.load_data()
     # Optimización
     model = OptimizationModel(
         q_gl=q_gl_range,
         q_fluid_wells=y_pred_list,
-        available_qgl_total=qgl_limit
+        available_qgl_total=qgl_limit,
+        p_qgl_list=p_qgl_optim_list
     )
     model.define_optimisation_problem()
     model.define_variables()
@@ -118,5 +137,7 @@ def run_pipeline(csv_file_path: str,
             "qgl_limit": qgl_limit
             },
         "qgl_range": q_gl_range,
-        "y_pred_list": y_pred_list    
+        "y_pred_list": y_pred_list,
+        "p_qgl_optim_list": p_qgl_optim_list,
+        "p_qoil_optim_list": p_qoil_optim_list
     }
