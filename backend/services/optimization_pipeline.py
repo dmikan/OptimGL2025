@@ -15,7 +15,7 @@ def fitting_group(csv_file_path):
 
     q_gl_max = max([np.max(j) for j in q_gl_list])
     #q_gl_range = np.linspace(0, q_gl_max, 1000)
-    q_gl_range = np.logspace(0.1, np.log10(q_gl_max), 1000) 
+    q_gl_range = np.logspace(0.1, np.log10(q_gl_max), 1000) # granularidad del fitting
     # Preparar datos para las gráficas
     plot_data = []
     y_pred_list = []
@@ -27,7 +27,7 @@ def fitting_group(csv_file_path):
         fitter = Fitting(q_gl, q_oil)
         y_pred = fitter.fit(fitter.model_namdar, q_gl_range)
         y_pred_list.append(y_pred)
-        
+
         # Guardar datos para gráficas interactivas
         well_data = {
             "well_num": well + 1,
@@ -36,31 +36,31 @@ def fitting_group(csv_file_path):
             "q_gl_range": q_gl_range,
             "q_oil_predicted": y_pred
         }
-        plot_data.append(well_data)  
+        plot_data.append(well_data)
     return {
         "qgl_range": q_gl_range,
         "y_pred_list": y_pred_list,
-        "plot_data": plot_data,     
-    }    
+        "plot_data": plot_data,
+    }
 
 
 def run_pipeline(csv_file_path: str,
                  q_gl_range,
                  y_pred_list,
-                 plot_data, 
+                 plot_data,
                  output_file: str = "static/results/output.txt",
                  qgl_limit: float = 4600,
                  p_qoil: float = 0.0,
                  p_qgl: float = 0.0) -> dict:  # Cambiamos el return type
     """
     Ejecuta el pipeline completo de optimización y guarda resultados en DB
-    
+
     Args:
         csv_file_path: Ruta al archivo CSV con datos de entrada
         output_file: Ruta para guardar los resultados en texto
         user: Nombre del usuario que ejecuta la optimización
         qgl_limit: Límite total de gas de levantamiento disponible
-    
+
     Returns:
         Diccionario con resultados y datos para gráficas
     """
@@ -118,7 +118,7 @@ def run_pipeline(csv_file_path: str,
         {'numero': i+1, 'produccion': prod, 'qgl': qgl}
         for i, (prod, qgl) in enumerate(results)
     ]
-    
+
     save_optimization_results(
         total_prod=sum(result_prod_rates),
         total_qgl=sum(result_optimal_qgl),

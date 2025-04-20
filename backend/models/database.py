@@ -16,7 +16,7 @@ Base = declarative_base()
 def init_db():
     # Configuración para MySQL
     DB_USER = "root"
-    DB_PASSWORD = "1030607277"
+    DB_PASSWORD = "Finisterra17#"
     DB_HOST = "localhost"  # o tu dirección de servidor
     DB_NAME = "optimizacion_pozos"
 
@@ -26,7 +26,7 @@ def init_db():
         SQLALCHEMY_DATABASE_URL,
         pool_pre_ping=True,
         pool_recycle=3600,
-        echo=True 
+        echo=True
     )
     Base.metadata.create_all(engine)
     return engine

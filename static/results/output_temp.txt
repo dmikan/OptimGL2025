@@ -1,12 +1,12 @@
-=== Resultados de Optimizaci髇 ===
+=== Resultados de Optimizaci贸n ===
 
-L韒ite QGL configurado: 1000
-Producci髇 total: 2497.39
+L铆mite QGL configurado: 1000
+Producci贸n total: 2497.40
 QGL total utilizado: 999.98 (100.0%)
 
 Resultados por pozo:
-Pozo 1: Producci髇 = 204.69, QGL = 1.26, Eficiencia = 162.5911
-Pozo 2: Producci髇 = 572.97, QGL = 229.60, Eficiencia = 2.4955
-Pozo 3: Producci髇 = 845.54, QGL = 359.34, Eficiencia = 2.3530
-Pozo 4: Producci髇 = 412.95, QGL = 200.56, Eficiencia = 2.0590
-Pozo 5: Producci髇 = 461.24, QGL = 209.22, Eficiencia = 2.2046
+Pozo 1: Producci贸n = 204.69, QGL = 1.26, Eficiencia = 162.5911
+Pozo 2: Producci贸n = 572.97, QGL = 229.60, Eficiencia = 2.4955
+Pozo 3: Producci贸n = 845.54, QGL = 359.34, Eficiencia = 2.3530
+Pozo 4: Producci贸n = 412.96, QGL = 200.56, Eficiencia = 2.0590
+Pozo 5: Producci贸n = 461.24, QGL = 209.22, Eficiencia = 2.2046

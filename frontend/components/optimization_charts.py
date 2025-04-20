@@ -12,37 +12,37 @@ def show_optimization_charts(temp_path, global_opt=False):
     if global_opt:
         # Configuración para optimización global
         with st.expander("Configuración de Optimización", expanded=True):
-            col1, col2 = st.columns(2)          
+            col1, col2 = st.columns(2)
             with col1:
                 p_qoil_global = st.number_input(
-                    "Precio del petróleo (USD/bbl)", 
-                    min_value=0.1, 
-                    max_value=None, 
+                    "Precio del petróleo (USD/bbl)",
+                    min_value=0.1,
+                    max_value=None,
                     value=70.0,
                     step=1.0,
                     key="p_qoil_global"
                 )
-            
+
             with col2:
                 p_qgl_global = st.number_input(
-                    "Costo del gas (USD/Mscf)", 
-                    min_value=0.1, 
-                    max_value=None, 
+                    "Costo del gas (USD/Mscf)",
+                    min_value=0.1,
+                    max_value=None,
                     value=5.0,
                     step=0.5,
                     key="p_qgl_global"
                 )
-        
-        if st.button("Optimización Global"):    
+
+        if st.button("Optimización Global"):
             with st.spinner("Procesando datos..."):
                 try:
                     fit = fitting_group(csv_file_path=str(temp_path))
                     session = get_session()
                     optimizacion = session.query(Optimizacion).order_by(Optimizacion.fecha_ejecucion.desc()).first()
-                    
+
                     st.subheader(f"Curva de Optimización Global: {optimizacion.nombre_planta}")
                     _plot_global_optimization(fit, p_qoil_global, p_qgl_global)
-                    
+
                 except Exception as e:
                     st.error(f"❌ Error durante la optimización: {str(e)}")
                     st.exception(e)
@@ -50,37 +50,37 @@ def show_optimization_charts(temp_path, global_opt=False):
         # Configuración para optimización con QGL dado
         with st.expander("Configuración de Optimización", expanded=True):
             col1, col2, col3 = st.columns(3)
-            
+
             with col1:
                 qgl_limit = st.number_input(
-                    "Límite total de QGL (Mscf)", 
-                    min_value=0, 
-                    max_value=None, 
+                    "Límite total de QGL (Mscf)",
+                    min_value=0,
+                    max_value=None,
                     value=1000,
                     step=100,
                     key="qgl_limit"
                 )
-            
+
             with col2:
                 p_qoil = st.number_input(
-                    "Precio del petróleo (USD/bbl)", 
-                    min_value=0.1, 
-                    max_value=None, 
+                    "Precio del petróleo (USD/bbl)",
+                    min_value=0.1,
+                    max_value=None,
                     value=70.0,
                     step=1.0,
                     key="p_qoil"
                 )
-            
+
             with col3:
                 p_qgl = st.number_input(
-                    "Costo del gas (USD/Mscf)", 
-                    min_value=0.1, 
-                    max_value=None, 
+                    "Costo del gas (USD/Mscf)",
+                    min_value=0.1,
+                    max_value=None,
                     value=5.0,
                     step=0.5,
                     key="p_qgl"
                 )
-        
+
         if st.button("Ejecutar Optimización"):
             with st.spinner("Procesando datos..."):
                 try:
@@ -95,14 +95,14 @@ def show_optimization_charts(temp_path, global_opt=False):
                         p_qoil=p_qoil,
                         p_qgl=p_qgl
                     )
-                    
+
                     st.success("¡Optimización completada!")
                     session = get_session()
                     optimizacion = session.query(Optimizacion).order_by(Optimizacion.fecha_ejecucion.desc()).first()
-                    
+
                     # Mostrar resultados
                     _show_optimization_results(results, optimizacion)
-                    
+
                 except Exception as e:
                     st.error(f"❌ Error durante la optimización: {str(e)}")
                     st.exception(e)
@@ -118,29 +118,29 @@ def _plot_global_optimization(fit, p_qoil, p_qgl):
             return False
         recent = values[-window_size:]
         return all(abs(x - recent[0]) < tolerance for x in recent)
-    
+
     qgl_history = []
-    num = 40
-    max_qgl = 20000 
+    num = 40 # numero de optimizaciones
+    max_qgl = 20000
     optimization_results = {"qgl_limit": [], "total_production": [], "total_qgl": []}
     log_vals = np.logspace(start=1, stop=np.log10(max_qgl), num=num)
     log_vals = np.unique(log_vals)
-    
+
     progress_bar = st.progress(0, text="Calculando curva de optimización global...")
-    for i, qgl_limit in enumerate(log_vals):    
+    for i, qgl_limit in enumerate(log_vals):
         dic_optim_result = run_pipeline_summary(
                 q_gl_range=fit["qgl_range"],
-                y_pred_list=fit["y_pred_list"], 
+                y_pred_list=fit["y_pred_list"],
                 qgl_limit = qgl_limit,
                 p_qoil=p_qoil,
-                p_qgl=p_qgl) 
-        
+                p_qgl=p_qgl)
+
         current_qgl = dic_optim_result["total_qgl"]
         optimization_results["qgl_limit"].append(qgl_limit)
         optimization_results["total_production"].append(dic_optim_result["total_production"])
         optimization_results["total_qgl"].append(dic_optim_result["total_qgl"])
         qgl_history.append(current_qgl)
-        
+
         progress_text = f"Procesando QGL límite: {round(qgl_limit,2)}"
         if has_stabilized(qgl_history):
             progress_text += " (¡Estabilizado!)"
@@ -253,30 +253,30 @@ def _show_optimization_results(results, optimizacion):
     col1, col2, col3 = st.columns(3)
 
     st.markdown("---")
-    
+
     with col1:
         st.metric(
-            "Producción Total", 
+            "Producción Total",
             f"{results['summary']['total_production']:.2f} bbl"
         )
-    
+
     with col2:
         st.metric(
-            "QGL Total Utilizado", 
+            "QGL Total Utilizado",
             f"{results['summary']['total_qgl']:.2f} Mscf",
             delta=f"{(results['summary']['total_qgl']/results['summary']['qgl_limit']*100):.1f}% del límite"
         )
-    
+
     with col3:
         st.metric(
-            "Límite QGL Configurado", 
+            "Límite QGL Configurado",
             f"{results['summary']['qgl_limit']:.2f} Mscf"
         )
-    
+
     # Gráficas de optimización
     st.subheader("Curvas de Comportamiento por Pozo")
     _plot_well_curves(results, optimizacion)
-    
+
     # Tabla de resultados
     st.subheader("Resultados Detallados por Pozo")
     from components.results_table import show_well_results
@@ -287,7 +287,7 @@ def _plot_well_curves(results, optimizacion):
     if not results.get('plot_data') or not optimizacion.pozos:
         st.warning("No hay datos suficientes para graficar")
         return
-    
+
     # Configuración de colores para tema oscuro de Streamlit (IDÉNTICO AL ORIGINAL)
     bg_color = "#0E1117"  # Color de fondo oscuro de Streamlit
     grid_color = "#37474F"  # Color de grid que contrasta bien con el fondo
@@ -295,11 +295,11 @@ def _plot_well_curves(results, optimizacion):
     line_color = "#00E676"  # Verde claro para las curvas
     marker_color = "#C8E6C9"  # Verde claro para los puntos de datos
     optimal_line_color = "#FF5252"  # Rojo brillante para las líneas de QGL óptimo
-    
+
     # FIGURA 1: CURVA DE PRODUCCIÓN (q_oil vs q_gl) - MANTENIENDO TODOS LOS DETALLES
     fig_prod = make_subplots(
-        rows=2, 
-        cols=3, 
+        rows=2,
+        cols=3,
         subplot_titles=[f"Well {pozo.nombre_pozo} - Producción" for pozo in optimizacion.pozos],
         horizontal_spacing=0.1,
         vertical_spacing=0.15
@@ -308,7 +308,7 @@ def _plot_well_curves(results, optimizacion):
     for idx, (well_data, pozo) in enumerate(zip(results['plot_data'], optimizacion.pozos)):
         row = (idx // 3) + 1
         col = (idx % 3) + 1
-        
+
         # 1. Curva ajustada (EXACTAMENTE IGUAL)
         fig_prod.add_trace(
             go.Scatter(
@@ -322,7 +322,7 @@ def _plot_well_curves(results, optimizacion):
             ),
             row=row, col=col
         )
-        
+
         # 2. Puntos reales (EXACTAMENTE IGUAL)
         fig_prod.add_trace(
             go.Scatter(
@@ -331,8 +331,8 @@ def _plot_well_curves(results, optimizacion):
                 mode='markers',
                 name='Datos reales',
                 marker=dict(
-                    color=marker_color, 
-                    size=7, 
+                    color=marker_color,
+                    size=7,
                     line=dict(width=1, color='DarkSlateGrey')  # Detalle exacto del borde
                 ),
                 showlegend=True if idx == 0 else False,
@@ -340,7 +340,7 @@ def _plot_well_curves(results, optimizacion):
             ),
             row=row, col=col
         )
-        
+
         # 3. Óptimo según MRP (MANTENIENDO LOS results[] ORIGINALES)
         fig_prod.add_trace(
             go.Scatter(
@@ -358,7 +358,7 @@ def _plot_well_curves(results, optimizacion):
         # 4. Línea y marcador óptimo (IDÉNTICO AL ORIGINAL)
         optimal_qgl = pozo.qgl_optimo
         optimal_prod = pozo.produccion_optima
-        
+
         fig_prod.add_trace(
             go.Scatter(
                 x=[optimal_qgl, optimal_qgl],
@@ -371,7 +371,7 @@ def _plot_well_curves(results, optimizacion):
             ),
             row=row, col=col
         )
-        
+
         fig_prod.add_trace(
             go.Scatter(
                 x=[optimal_qgl],
@@ -379,8 +379,8 @@ def _plot_well_curves(results, optimizacion):
                 mode='markers',
                 name='Punto óptimo',
                 marker=dict(
-                    color=optimal_line_color, 
-                    size=10, 
+                    color=optimal_line_color,
+                    size=10,
                     symbol='x'  # Mismo símbolo original
                 ),
                 showlegend=True if idx == 0 else False,
@@ -388,19 +388,19 @@ def _plot_well_curves(results, optimizacion):
             ),
             row=row, col=col
         )
-        
+
         # Configuración de ejes (COPIADO DIRECTAMENTE)
         fig_prod.update_xaxes(
-            title_text="Inyección de gas (q_gl)", 
+            title_text="Inyección de gas (q_gl)",
             row=row, col=col,
             gridcolor=grid_color,
             linecolor=grid_color,
             tickfont=dict(color=text_color),
             title_font=dict(color=text_color)
         )
-        
+
         fig_prod.update_yaxes(
-            title_text="Producción (bbl/d)", 
+            title_text="Producción (bbl/d)",
             row=row, col=col,
             gridcolor=grid_color,
             linecolor=grid_color,
