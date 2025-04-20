@@ -18,6 +18,8 @@ class Optimizacion(Base):
     produccion_total = Column(Float)
     qgl_total = Column(Float)
     qgl_limit = Column(Float)
+    valor_barril = Column(Float)
+    valor_gas = Column(Float)
     nombre_planta = Column(String(100))
     archivo_origen = Column(String(255))
     

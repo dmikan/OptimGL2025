@@ -9,7 +9,9 @@ def save_optimization_results(total_prod: float,
                             wells_data: list,
                             info: list,
                             filename: str,
-                            qgl_limit: float = 1000):  # Parámetro añadido con valor por defecto
+                            qgl_limit: float = 1000,
+                            p_qoil: float = 0.0,
+                            p_qgl: float = 0.0):  # Parámetro añadido con valor por defecto
     """Guarda los resultados de optimización en la base de datos
     
     Args:
@@ -30,6 +32,8 @@ def save_optimization_results(total_prod: float,
             qgl_total=total_qgl,
             qgl_limit=qgl_limit,  
             nombre_planta=info[0],
+            valor_barril=p_qoil,
+            valor_gas=p_qgl,
             archivo_origen=filename
         )
         

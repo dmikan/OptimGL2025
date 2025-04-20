@@ -28,71 +28,178 @@ tabs = st.sidebar.radio("Selecciona una opción", ["Optimización", "Otros servi
 
 if tabs == "Optimización":
     uploaded_file = st.file_uploader("Sube tu archivo CSV con datos de producción", type="csv")
-    on = st.toggle("upload data manually")
+    on = st.toggle("Upload data manually")
 
     if on:
+        # Configuración de estilo
+        st.markdown("""
+        <style>
+            .stDataFrame .row-headers {
+                font-weight: bold;
+                color: #1f77b4;
+            }
+            /* Ocultar valores None */
+            .stDataFrame [data-testid='stDataFrame'] td:empty:after {
+                content: '';
+                display: inline-block;
+            }
+        </style>
+        """, unsafe_allow_html=True)
 
-        input_columns_info = ["field", "well_1", "well_2", "well_3", "well_4", "well_5"]
-        input_df_info = pd.DataFrame({
-                    col: ["" for _ in range(1)] for col in input_columns_info
-                    }
-                    )
-        edited_input_df_info = st.data_editor(input_df_info, width=None, height=None, num_rows="Dynamic", use_container_width=True)     
-       
-        input_columns = ["q_inj_w1", "fluid_w1", "q_inj_w2", "fluid_w2", "q_inj_w3", "fluid_w3", "q_inj_w4", "fluid_w4", "q_inj_w5", "fluid_w5"]
-        input_df = pd.DataFrame({
-                            col: ["" for _ in range(10)] for col in input_columns
-                            }
-                            )
-        edited_input_df = st.data_editor(input_df, width=None, height=None, num_rows="Dynamic", use_container_width=True)     
-        # agregar columna index 
-        edited_input_df.insert(0, "index", range(1, len(edited_input_df) + 1))
-
-        # Columnas actuales
-        current_cols = edited_input_df_info.columns.tolist()
-
-        # Si faltan columnas, las añadimos con nombres automáticos
-        num_col = edited_input_df.shape[1]
-        if len(current_cols) < num_col:
-            for col in range(len(current_cols), num_col):
-                edited_input_df_info[col] = np.nan  
+        # --- Configuración de parámetros ---
+        st.subheader("Configuración")
+        col1, col2 = st.columns(2)
         
-        #agregar una fila de primera para la descripción
-        df_desc = pd.DataFrame([ [""] * edited_input_df_info.shape[1]], columns=edited_input_df_info.columns)
-        edited_input_df_info = pd.concat([df_desc, edited_input_df_info], ignore_index=True)           
-        #exportar en csv
-        edited_input_df_info.to_csv("data_test.csv", index=False)
+        with col1:
+            num_wells = st.number_input("Número de pozos", min_value=1, max_value=20, value=5, step=1)
+        
+        with col2:
+            num_filas = st.number_input("Número de filas de datos", min_value=1, max_value=100, value=5, step=1)
 
-        # --- Exportar a CSV ---
-        st.download_button(
-            label="Download CSV",
-            data=edited_input_df_info.to_csv(index=False).encode('utf-8'),
-            file_name="data_test.csv",
-            mime="text/csv"
+        # --- Información de campos (1 fila fija) ---
+        st.subheader("Información de Campos y Pozos")
+        
+        well_columns = [f"well_{i+1}" for i in range(num_wells)]
+        input_columns_info = ["field"] + well_columns
+        
+        input_df_info = pd.DataFrame(
+            [["" for _ in input_columns_info]],
+            columns=input_columns_info,
+            index=[1]  # Índice inicial en 1
         )
-        #uploaded_file = edited_input_df
+        
+        edited_input_df_info = st.data_editor(
+            input_df_info,
+            num_rows="fixed",
+            hide_index=False,
+            use_container_width=True,
+            key="info_editor"
+        )
+
+        # --- Datos de producción (filas dinámicas) ---
+        st.subheader("Datos de Producción")
+        
+        production_columns = []
+        for i in range(1, num_wells + 1):
+            production_columns.extend([f"q_inj_w{i}", f"fluid_w{i}"])
+        
+        # DataFrame con el número de filas especificado
+        input_df = pd.DataFrame(
+            [["" for _ in production_columns] for _ in range(num_filas)],
+            columns=production_columns,
+            index=range(1, num_filas + 1)  # Índices desde 1
+        )
+        
+        edited_input_df = st.data_editor(
+            input_df,
+            num_rows="fixed",
+            hide_index=False,
+            use_container_width=True,
+            key="prod_editor"
+        )
+
+        # Agregar columna index si no existe
+        if "index" not in edited_input_df.columns:
+            edited_input_df.insert(0, "index", range(1, len(edited_input_df) + 1))
+
+        # --- Construir el CSV final ---
+        # Número total de columnas esperadas (basado en edited_input_df)
+        total_columns = len(edited_input_df.columns)  # 11 (index + 10 columns)
+
+        # Crear un DataFrame vacío con el número correcto de columnas
+        final_df = pd.DataFrame(columns=range(total_columns))
+
+        # Fila 1: Descripción (primera celda + vacías)
+        final_df.loc[0] = ["description"] + [""] * (total_columns - 1)
+
+        # Fila 2: Nombres de campos/pozos (field, well_1, well_2, etc.)
+        # Asegurar que tenga el mismo número de columnas (rellenar con "")
+        wells_header = edited_input_df_info.columns.tolist() + [""] * (total_columns - len(edited_input_df_info.columns))
+        final_df.loc[1] = wells_header
+
+        # Fila 3: Valores de campos/pozos (field001, w001, etc.)
+        if not edited_input_df_info.empty:
+            wells_values = edited_input_df_info.iloc[0].tolist() + [""] * (total_columns - len(edited_input_df_info.columns))
+            final_df.loc[2] = wells_values
+
+        # Fila 4: Encabezados de datos (index, q_inj_w1, fluid_w1, etc.)
+        final_df.loc[3] = edited_input_df.columns.tolist()
+
+        # Filas siguientes: Datos de producción
+        for i, row in edited_input_df.iterrows():
+            final_df.loc[4 + i] = row.tolist()
+        uploaded_file = final_df
+
+        # --- Exportar CSV ---
+        #csv_data = final_df.to_csv(index=False, header=False)
+        #st.download_button(
+        #    label="Download CSV",
+        #    data=csv_data.encode('utf-8'),
+        #    file_name="production_data.csv",
+        #    mime="text/csv"
+        #)
+        
 
 
 
-    # Crear pestañas
-    tab1, tab2, tab3 = st.tabs(["Optimización Global", "Optimización con QGL dado", "Historial de Optimizaciones"])
 
-    if uploaded_file:
+
+    if uploaded_file is not None:
         # Crear directorios necesarios
         upload_dir = project_root / "static" / "uploads"
         upload_dir.mkdir(parents=True, exist_ok=True)
         
-        # Guardar archivo permanentemente
-        content = uploaded_file.getvalue()
-        csv_str = content.decode("utf-8") 
-        df = pd.read_csv(StringIO(csv_str))
-        nombre_planta = df.iloc[1, 0]
+        # Manejar ambos casos (archivo subido o datos manuales)
+        if isinstance(uploaded_file, pd.DataFrame):
+            # Caso de datos manuales
+            df = uploaded_file
+            nombre_planta = df.iloc[2, 0] if len(df) > 1 else "manual_data"
+            print ("Nombre de planta:", nombre_planta)
+            temp_path = upload_dir / f"temp_data_{nombre_planta}.csv"
+        # Botón para guardar los datos
+            if st.button("Upload data"):
+                try:
+                    df.to_csv(temp_path, index=False, header=False)
+                    st.success(f"Datos guardados exitosamente en {temp_path}")
+                except Exception as e:
+                    st.error(f"Error al guardar los datos: {e}")
+        else:
+            # Caso de archivo subido
+            content = uploaded_file.getvalue()
+            csv_str = content.decode("utf-8") 
+            df = pd.read_csv(StringIO(csv_str))
+            nombre_planta = df.iloc[1, 0] if len(df) > 1 else "uploaded_data"
+            
+            temp_path = upload_dir / f"temp_data_{nombre_planta}.csv"
+            with open(temp_path, "wb") as f:
+                f.write(uploaded_file.getvalue())
 
-        temp_path = upload_dir / f"temp_data_{nombre_planta}.csv"
-        with open(temp_path, "wb") as f:
-            f.write(uploaded_file.getvalue())
+    # Crear pestañas
+    tab1, tab2, tab3 = st.tabs(["Optimización Global", "Optimización con QGL dado", "Historial de Optimizaciones"])
 
     with tab1:
+        # --- Sección de configuración ---
+        with st.expander("Configuración de Optimización", expanded=True):
+            col1, col2 = st.columns(2)          
+            with col1:
+                p_qoil_global = st.number_input(
+                    "Precio del petróleo (USD/bbl)", 
+                    min_value=0.1, 
+                    max_value=None, 
+                    value=70.0,
+                    step=1.0,
+                    key="p_qoil_global"
+                )
+            
+            with col2:
+                p_qgl_global = st.number_input(
+                    "Costo del gas (USD/Mscf)", 
+                    min_value=0.1, 
+                    max_value=None, 
+                    value=5.0,
+                    step=0.5,
+                    key="p_qgl_global"
+                )
         if st.button("Optimización Global"):    
              with st.spinner("Procesando datos..."):
                 try:
@@ -103,7 +210,7 @@ if tabs == "Optimización":
                     # --- Gráfica de Optimización Global ---
                     st.subheader(f"Curva de Optimización Global: {optimizacion.nombre_planta}")
 
-                    def has_stabilized(values, window_size=20, tolerance=1e-6):
+                    def has_stabilized(values, window_size=3, tolerance=1e-6):
                         """Detecta si los valores se han estabilizado"""
                         if len(values) < window_size:
                             return False
@@ -122,9 +229,11 @@ if tabs == "Optimización":
                         dic_optim_result = run_pipeline_summary(
                                 q_gl_range=fit["qgl_range"],
                                 y_pred_list=fit["y_pred_list"], 
-                                qgl_limit = qgl_limit) 
+                                qgl_limit = qgl_limit,
+                                p_qoil=p_qoil_global,
+                                p_qgl=p_qgl_global) 
                         
-                        # la siguiente línea vienes de la función run_pipeline que retorna un diccionario y tomamos su valor de "summary 
+                        # la siguiente línea viene de la función run_pipeline que retorna un diccionario y tomamos su valor de "summary 
                         current_qgl = dic_optim_result["total_qgl"]
                         optimization_results["qgl_limit"].append(qgl_limit)
                         optimization_results["total_production"].append(dic_optim_result["total_production"])
@@ -497,125 +606,7 @@ if tabs == "Optimización":
                         )
 
                         st.plotly_chart(fig_prod, use_container_width=True)
-
-                        ######################################################
-                        # FIGURA 2: ANÁLISIS ECONÓMICO (MRP vs COSTO)
-                        ######################################################
-                        st.subheader("Optimización Económica (MRP vs Costo)")
-
-                        # Precios (ajustar según tus datos)
-                        P_qoil = 70  # Precio por barril de petróleo (USD/bbl)
-                        P_qgl = 5    # Costo por Mscf de gas inyectado (USD/Mscf)
-
-                        fig_mrp = make_subplots(
-                            rows=2, 
-                            cols=3, 
-                            subplot_titles=[f"Well {pozo.nombre_pozo}" for pozo in optimizacion.pozos],
-                            horizontal_spacing=0.1,
-                            vertical_spacing=0.15
-                        )
-
-                        for idx, (well_data, pozo) in enumerate(zip(results['plot_data'], optimizacion.pozos)):
-                            row = (idx // 3) + 1
-                            col = (idx % 3) + 1
-                            
-                            # Calcular MRP
-                            delta_q_gl = np.diff(well_data["q_gl_range"])
-                            delta_q_oil = np.diff(well_data["q_oil_predicted"])
-                            mp = delta_q_oil / delta_q_gl
-                            mrp = P_qoil * mp  # Marginal Revenue Product
-                            qgl_values = well_data["q_gl_range"][:-1]  # Valores de qgl para el MRP
-
-                            # --- Gráfico principal ---
-                            # 1. Curva MRP
-                            fig_mrp.add_trace(
-                                go.Scatter(
-                                    x=qgl_values,
-                                    y=mrp,
-                                    mode='lines',
-                                    name='MRP (USD/Mscf)',
-                                    line=dict(width=3, color='#636EFA'),
-                                    showlegend=True if idx == 0 else False,
-                                    legendgroup='group1'
-                                ),
-                                row=row, col=col
-                            )
-                            
-                            # 2. Línea de costo (wage)
-                            fig_mrp.add_hline(
-                                y=P_qgl,
-                                line=dict(width=2, color='#EF553B', dash='dash'),
-                                annotation_text=f"Costo Gas: {P_qgl} USD/Mscf",
-                                annotation_position="top right",
-                                row=row, col=col
-                            )
-                            
-                            # --- Encontrar y marcar intersección (qgl óptimo) ---
-                            # Buscar el punto donde MRP >= P_qgl por última vez
-                            optimal_idx = np.where(mrp >= P_qgl)[0][-1] if any(mrp >= P_qgl) else len(mrp)-1
-                            qgl_optimo = qgl_values[optimal_idx]
-                            mrp_optimo = mrp[optimal_idx]
-                            
-                            # 3. Línea vertical del óptimo
-                            fig_mrp.add_vline(
-                                x=qgl_optimo,
-                                line=dict(width=2, color='#00CC96', dash='dot'),
-                                annotation_text=f"Óptimo: {qgl_optimo:.1f} Mscf",
-                                annotation_position="top left",
-                                row=row, col=col
-                            )
-                            
-                            # 4. Punto de intersección
-                            fig_mrp.add_trace(
-                                go.Scatter(
-                                    x=[qgl_optimo],
-                                    y=[mrp_optimo],
-                                    mode='markers',
-                                    marker=dict(size=10, color='#FFA15A', symbol='x'),
-                                    name='Punto óptimo',
-                                    showlegend=True if idx == 0 else False,
-                                    legendgroup='group2'
-                                ),
-                                row=row, col=col
-                            )
-                            
-                            # --- Configuración de ejes ---
-                            fig_mrp.update_xaxes(
-                                title_text="Inyección de gas (q_gl)", 
-                                row=row, col=col,
-                                gridcolor=grid_color,
-                                tickfont=dict(color=text_color),
-                                title_font=dict(color=text_color),
-                                range=[0, max(qgl_values)*1.1]  # Ajuste de rango para visualización
-                            )
-                            
-                            fig_mrp.update_yaxes(
-                                title_text="MRP (USD/Mscf)", 
-                                row=row, col=col,
-                                gridcolor=grid_color,
-                                tickfont=dict(color=text_color),
-                                title_font=dict(color=text_color),
-                                range=[0, max(mrp)*1.1]  # Ajuste de rango para visualización
-                            )
-
-                        # Layout general
-                        fig_mrp.update_layout(
-                            height=800,
-                            width=1200,
-                            plot_bgcolor=bg_color,
-                            paper_bgcolor=bg_color,
-                            font=dict(color=text_color),
-                            legend=dict(
-                                orientation="h",
-                                yanchor="bottom",
-                                y=1.02,
-                                xanchor="right",
-                                x=1
-                            ),
-                            margin=dict(l=50, r=50, b=80, t=100, pad=4)
-                        )
-
-                        st.plotly_chart(fig_mrp, use_container_width=True)
+                        
 
                         ######################################################
                         # --- Tabla de resultados ---
@@ -657,7 +648,9 @@ if tabs == "Optimización":
                 "Producción Total (bbl)": opt.produccion_total,
                 "QGL Total (Mscf)": opt.qgl_total,
                 "Límite QGL": opt.qgl_limit,
-                "Archivo": Path(opt.archivo_origen).name
+                "(USD/bbl)": opt.valor_barril,
+                "(USD/Mscf)": opt.valor_gas
+                #"Archivo": Path(opt.archivo_origen).name
             } for opt in optimizaciones]
 
             df_historial = pd.DataFrame(historial_data)
@@ -667,7 +660,9 @@ if tabs == "Optimización":
                 df_historial.style.format({
                     "Producción Total (bbl)": "{:.2f}",
                     "QGL Total (Mscf)": "{:.2f}",
-                    "Límite QGL": "{:.2f}"
+                    "Límite QGL": "{:.2f}",
+                    "(USD/bbl)": "{:.2f}",
+                    "(USD/Mscf)": "{:.2f}"
                 }),
                 use_container_width=True,
                 height=300

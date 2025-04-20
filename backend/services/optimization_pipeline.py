@@ -126,6 +126,8 @@ def run_pipeline(csv_file_path: str,
         wells_data=wells_data,
         filename=csv_file_path,
         qgl_limit=qgl_limit,
+        p_qoil=p_qoil,
+        p_qgl=p_qgl
     )
 
     return {

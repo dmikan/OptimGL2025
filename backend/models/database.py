@@ -14,10 +14,25 @@ from sqlalchemy.orm import sessionmaker
 Base = declarative_base()
 
 def init_db():
-    engine = create_engine('mysql+mysqlconnector://root:1030607277@localhost/optimizacion_pozos')
+    # Configuración para MySQL
+    DB_USER = "root"
+    DB_PASSWORD = "1030607277"
+    DB_HOST = "localhost"  # o tu dirección de servidor
+    DB_NAME = "optimizacion_pozos"
+
+    # Cadena de conexión para MySQL
+    SQLALCHEMY_DATABASE_URL = f"mysql+mysqlconnector://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/{DB_NAME}"
+    engine = create_engine(
+        SQLALCHEMY_DATABASE_URL,
+        pool_pre_ping=True,
+        pool_recycle=3600,
+        echo=True 
+    )
     Base.metadata.create_all(engine)
     return engine
 
-def get_session(engine):
-    Session = sessionmaker(bind=engine)
+def get_session(engine=None):
+    if engine is None:
+        engine = init_db()
+    Session = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     return Session()
