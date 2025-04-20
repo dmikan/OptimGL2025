@@ -1,12 +1,11 @@
 === Resultados de Optimización ===
 
-Límite QGL configurado: 1000
-Producción total: 2497.40
-QGL total utilizado: 999.98 (100.0%)
+Límite QGL configurado: 1306
+Producción total: 1162.94
+QGL total utilizado: 1305.74 (100.0%)
 
 Resultados por pozo:
-Pozo 1: Producción = 204.69, QGL = 1.26, Eficiencia = 162.5911
-Pozo 2: Producción = 572.97, QGL = 229.60, Eficiencia = 2.4955
-Pozo 3: Producción = 845.54, QGL = 359.34, Eficiencia = 2.3530
-Pozo 4: Producción = 412.96, QGL = 200.56, Eficiencia = 2.0590
-Pozo 5: Producción = 461.24, QGL = 209.22, Eficiencia = 2.2046
+Pozo 1: Producción = 0.00, QGL = 1.32, Eficiencia = 0.0000
+Pozo 2: Producción = 200.58, QGL = 303.53, Eficiencia = 0.6608
+Pozo 3: Producción = 581.67, QGL = 464.94, Eficiencia = 1.2511
+Pozo 4: Producción = 380.69, QGL = 535.95, Eficiencia = 0.7103
