@@ -8,7 +8,7 @@ from backend.services.optimization_pipeline_summary import run_pipeline_summary
 from utils.config import get_project_root
 from backend.models.database import get_session
 
-def show_optimization_charts(temp_path, global_opt=False):
+def show_optimization_charts(input_data_path, global_opt=False):
     if global_opt:
         # Configuración para optimización global
         with st.expander("Configuración de Optimización", expanded=True):
@@ -36,7 +36,7 @@ def show_optimization_charts(temp_path, global_opt=False):
         if st.button("Optimización Global"):
             with st.spinner("Procesando datos..."):
                 try:
-                    fit = fitting_group(csv_file_path=str(temp_path))
+                    fit = fitting_group(csv_file_path=str(input_data_path))
                     session = get_session()
                     optimizacion = session.query(Optimizacion).order_by(Optimizacion.fecha_ejecucion.desc()).first()
 
@@ -84,9 +84,9 @@ def show_optimization_charts(temp_path, global_opt=False):
         if st.button("Ejecutar Optimización"):
             with st.spinner("Procesando datos..."):
                 try:
-                    fit = fitting_group(csv_file_path=str(temp_path))
+                    fit = fitting_group(csv_file_path=str(input_data_path))
                     results = run_pipeline(
-                        csv_file_path=str(temp_path),
+                        csv_file_path=str(input_data_path),
                         q_gl_range=fit['qgl_range'],
                         y_pred_list=fit["y_pred_list"],
                         plot_data=fit["plot_data"],
